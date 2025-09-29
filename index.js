@@ -1,7 +1,14 @@
+var cors = require("cors");
+
 const express = require("express");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 require("dotenv").config();
+
 const app = express();
+app.use(cors());
+app.use(express.json());
+
+
 const port = 3000;
 
 app.get("/", (req, res) => {
@@ -23,18 +30,20 @@ async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
-        // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log(
-            "Pinged your deployment. You successfully connected to MongoDB!"
-        );
+
+        const jobs = client.db("jobs").collection("jobs");
+
+        app.get("/jobs", async (req, res) => {
+            const cursor = jobs.find();
+            const result = await cursor.toArray();
+            res.send(result);
+        });
     } finally {
         // Ensures that the client will close when you finish/error
-        await client.close();
+        // await client.close();
     }
 }
 run().catch(console.dir);
-
 
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
