@@ -1,4 +1,5 @@
 var cors = require("cors");
+const jwt = require("jsonwebtoken");
 
 const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -34,6 +35,13 @@ async function run() {
         const jobs = client.db("jobs").collection("jobs");
         const applications = client.db("jobs").collection("applications");
 
+        // JWT related api
+        app.post("/jwt", (req, res) => {
+            const { email } = req.body;
+            const token = jwt.sign({ email }, "secret", { expiresIn: "2h" });
+            res.send({ token });
+        });
+
         // Get all jobs
         app.get("/jobs", async (req, res) => {
             const cursor = jobs.find();
@@ -42,7 +50,7 @@ async function run() {
         });
 
         // Get a single job by ID
-        app.get('/job/:id', async (req, res) => {
+        app.get("/job/:id", async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const job = await jobs.findOne(query);
@@ -52,21 +60,29 @@ async function run() {
         // Job Applications related API
 
         // Insert an applicaton
-        app.post('/applications', async (req, res) => {
+        app.post("/applications", async (req, res) => {
             const application = req.body;
             const result = await applications.insertOne(application);
             res.send(result);
         });
 
         // Get applications by applicant email
-        app.get('/applications', async (req, res) => {
+        app.get("/applications", async (req, res) => {
             const email = req.query.email;
             const query = { applicant: email };
             const result = await applications.find(query).toArray();
+
+            // Bad way to aggregate data from two collections
+            for (const application of result) {
+                const jobId = application.jobId;
+                const job = await jobs.findOne({ _id: new ObjectId(jobId) });
+
+                application.company = job.company;
+                application.title = job.title;
+            }
+
             res.send(result);
         });
- 
-
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
